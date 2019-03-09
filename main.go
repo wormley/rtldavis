@@ -32,7 +32,7 @@ import (
 	"os/signal"
 	"time"
 
-	"github.com/bemasher/rtldavis/protocol"
+	"github.com/lheijst/rtldavis/protocol"
 	"github.com/jpoirier/gortlsdr"
 )
 
