@@ -29,8 +29,8 @@ import (
 	"math"
 	"math/rand"
 
-	"github.com/bemasher/rtldavis/crc"
-	"github.com/bemasher/rtldavis/dsp"
+	"github.com/lheijst/rtldavis/crc"
+	"github.com/lheijst/rtldavis/dsp"
 )
 
 func NewPacketConfig(symbolLength int) (cfg dsp.PacketConfig) {
