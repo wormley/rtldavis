@@ -10,61 +10,69 @@ This repository is a fork of [https://github.com/bemasher/rtldavis](https://gith
 3) Output format is changed for use with the weewx-rtldavis driver which does the data parsing. 
 
 
-### Installation
+## Installation
 
-## Install packages needed for rtldavis
+#### Install packages needed for rtldavis
+
 sudo apt-get install golang git cmake librtlsdr-dev
 
-## Setup Udev Rules
+#### Setup Udev Rules
+
 Next, you need to add some udev rules to make the dongle available for the non-root users. First you want to find the vendor id and product id for your dongle.
 The way I did this was to run:
 
 lsusb
 
 The last line was the Realtek dongle:
-  Bus 001 Device 008: ID 0bda:2838 Realtek Semiconductor Corp.
-  Bus 001 Device 005: ID 0bda:2838 Realtek Semiconductor Corp. RTL2838 DVB-T
+    Bus 001 Device 008: ID 0bda:2838 Realtek Semiconductor Corp.
+    Bus 001 Device 005: ID 0bda:2838 Realtek Semiconductor Corp. RTL2838 DVB-T
 
 The important parts are "0bda" (the vendor id) and "2838" (the product id).
 
 Create a new file as root named /etc/udev/rules.d/20.rtlsdr.rules that contains the following line:
-  nano /etc/udev/rules.d/20.rtlsdr.rules
-  SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2838", GROUP="adm", MODE="0666", SYMLINK+="rtl_sdr"
+    nano /etc/udev/rules.d/20.rtlsdr.rules
+    SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2838", GROUP="adm", MODE="0666", SYMLINK+="rtl_sdr"
 
 With the vendor and product ids for your particular dongle. This should make the dongle accessible to any user in the adm group. and add a /dev/rtl_sdr symlink when the dongle is attached.
 
-## Get librtlsdr
-  cd /home/pi
-  git clone https://github.com/steve-m/librtlsdr.git
-  cd librtlsdr
-  mkdir build
-  cd build
-  cmake ../ -DINSTALL_UDEV_RULES=ON
-  make
-  sudo make install
-  sudo ldconfig
+#### Get librtlsdr
 
-## Create ~/profile
-  sudo nano ~/.profile
-  export GOROOT=/usr/lib/go
-  export GOPATH=$HOME/work
-  export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
-  source ~/.profile
+    cd /home/pi
+    git clone https://github.com/steve-m/librtlsdr.git
+    cd librtlsdr
+    mkdir build
+    cd build
+    cmake ../ -DINSTALL_UDEV_RULES=ON
+    make
+    sudo make install
+    sudo ldconfig
 
-## Get the rtldavis package
-  cd /home/pi
-  go get -v github.com/lheijst/rtldavis
+#### Create ~/profile
 
-## Compiling GO sources
-  cd $GOPATH/src/github.com/lheijst/rtldavis
-  git submodule init
-  git submodule update
-  go install -v .
+    sudo nano ~/.profile
+    export GOROOT=/usr/lib/go
+    export GOPATH=$HOME/work
+    export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+    source ~/.profile
 
-## Start program rtldavis
-  $GOPATH/bin/rtldavis
+#### Get the rtldavis package
 
-### Usage
+    cd /home/pi
+    go get -v github.com/lheijst/rtldavis
+
+#### Compiling GO sources
+
+    cd $GOPATH/src/github.com/lheijst/rtldavis
+    git submodule init
+    git submodule update
+    go install -v .
+
+#### Start program rtldavis
+
+    $GOPATH/bin/rtldavis
+
+#### Usage
+
 Available command-line flags are as follows:
 
 ```
@@ -83,6 +91,7 @@ Usage of rtldavis:
 ```
 
 ### License
+
 The source of this project is licensed under GPL v3.0. According to [http://choosealicense.com/licenses/gpl-3.0/](http://choosealicense.com/licenses/gpl-3.0/) you may:
 
 #### Required:
