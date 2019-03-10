@@ -12,10 +12,10 @@ This repository is a fork of [https://github.com/bemasher/rtldavis](https://gith
 
 ### Installation
 
-##Install packages needed for rtldavis
+## Install packages needed for rtldavis
 sudo apt-get install golang git cmake librtlsdr-dev
 
-##Setup Udev Rules
+## Setup Udev Rules
 Next, you need to add some udev rules to make the dongle available for the non-root users. First you want to find the vendor id and product id for your dongle.
 The way I did this was to run:
 
@@ -33,7 +33,7 @@ SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2838", GROUP="adm"
 
 With the vendor and product ids for your particular dongle. This should make the dongle accessible to any user in the adm group. and add a /dev/rtl_sdr symlink when the dongle is attached.
 
-##Get librtlsdr
+## Get librtlsdr
 cd /home/pi
 git clone https://github.com/steve-m/librtlsdr.git
 cd librtlsdr
@@ -44,24 +44,24 @@ make
 sudo make install
 sudo ldconfig
 
-##Create ~/profile
+## Create ~/profile
 sudo nano ~/.profile
 export GOROOT=/usr/lib/go
 export GOPATH=$HOME/work
 export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
 source ~/.profile
 
-##Get the rtldavis package
+## Get the rtldavis package
 cd /home/pi
 go get -v github.com/lheijst/rtldavis
 
-##Compiling GO sources
+## Compiling GO sources
 cd $GOPATH/src/github.com/lheijst/rtldavis
 git submodule init
 git submodule update
 go install -v .
 
-##Start program rtldavis
+## Start program rtldavis
 $GOPATH/bin/rtldavis
 
 ### Usage
