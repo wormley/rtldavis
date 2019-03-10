@@ -1,36 +1,85 @@
 # rtldavis
 
-### Purpose
-This project aims to implement a receiver for Davis Instruments wireless weather stations by making use of inexpensive rtl-sdr dongles.
+## rtldavis
 
-[![Build Status](https://travis-ci.org/bemasher/rtldavis.svg?branch=master&style=flat)](https://travis-ci.org/bemasher/rtldavis)
-[![GPLv3 License](https://img.shields.io/badge/license-GPLv3-blue.svg?style=flat)](http://choosealicense.com/licenses/gpl-3.0/)
+### About this Repository
 
-### Requirements
- * GoLang >=1.5 (Go build environment setup guide: http://golang.org/doc/code.html)
- * rtl-sdr: [github.com/steve-m/librtlsdr](https://github.com/steve-m/librtlsdr)
+This repository is a fork of [https://github.com/bemasher/rtldavis](https://github.com/bemasher/rtldavis) for use with custom receiver modules. It has been modified in numerous ways.
+1) Added EU frequencies
+2) Handling of more than one concurrent transmitters.
+3) Output format is changed for use with the weewx-rtldavis driver which does the data parsing. 
 
-### Building
-The following instructions assume that you have already built and installed the rtl-sdr tools and library above. Please see build instructions provided here: [http://sdr.osmocom.org/trac/wiki/rtl-sdr#Buildingthesoftware](http://sdr.osmocom.org/trac/wiki/rtl-sdr#Buildingthesoftware)
 
-To build the project, the following commands will checkout the latest source, initialize submodules and build the project:
+### Installation
 
-	go get -v github.com/bemasher/rtldavis
-	cd $GOPATH/github.com/bemasher/rtldavis
-	git submodule init
-	git submodule update
-	go install -v .
+##Install packages needed for rtldavis
+sudo apt-get install golang git cmake librtlsdr-dev
 
-This will produce the binary `$GOPATH/bin/rtldavis`. For convenience it's common to add `$GOPATH/bin` to the path.
+##Setup Udev Rules
+Next, you need to add some udev rules to make the dongle available for the non-root users. First you want to find the vendor id and product id for your dongle.
+The way I did this was to run:
+
+lsusb
+
+The last line was the Realtek dongle:
+Bus 001 Device 008: ID 0bda:2838 Realtek Semiconductor Corp.
+Bus 001 Device 005: ID 0bda:2838 Realtek Semiconductor Corp. RTL2838 DVB-T
+
+The important parts are "0bda" (the vendor id) and "2838" (the product id).
+
+Create a new file as root named /etc/udev/rules.d/20.rtlsdr.rules that contains the following line:
+nano /etc/udev/rules.d/20.rtlsdr.rules
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2838", GROUP="adm", MODE="0666", SYMLINK+="rtl_sdr"
+
+With the vendor and product ids for your particular dongle. This should make the dongle accessible to any user in the adm group. and add a /dev/rtl_sdr symlink when the dongle is attached.
+
+##Get librtlsdr
+cd /home/pi
+git clone https://github.com/steve-m/librtlsdr.git
+cd librtlsdr
+mkdir build
+cd build
+cmake ../ -DINSTALL_UDEV_RULES=ON
+make
+sudo make install
+sudo ldconfig
+
+##Create ~/profile
+sudo nano ~/.profile
+export GOROOT=/usr/lib/go
+export GOPATH=$HOME/work
+export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+source ~/.profile
+
+##Get the rtldavis package
+cd /home/pi
+go get -v github.com/lheijst/rtldavis
+
+##Compiling GO sources
+cd $GOPATH/src/github.com/lheijst/rtldavis
+git submodule init
+git submodule update
+go install -v .
+
+##Start program rtldavis
+$GOPATH/bin/rtldavis
 
 ### Usage
 Available command-line flags are as follows:
 
 ```
 Usage of rtldavis:
-  -id int
-    	id of the station to listen for
-  -v	log extra information to /dev/stderr
+  -tr [transmitters]
+    	code of the stations to listen for: tr1=1 tr2=4 tr3=8 tr4=8 tr5=16 tr6=32 tr7=64 tr8=129
+        Default = 1
+
+  -tf [tranceiver frequencies]
+        EU or US
+        Default = EU
+
+  -ex [extra loop_delay in ms]
+        In case a lot of messages are missed we might try to use the -ex parameter, like -ex 200
+        Default = -ex 0
 ```
 
 ### License
