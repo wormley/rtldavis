@@ -22,47 +22,47 @@ The way I did this was to run:
 lsusb
 
 The last line was the Realtek dongle:
-Bus 001 Device 008: ID 0bda:2838 Realtek Semiconductor Corp.
-Bus 001 Device 005: ID 0bda:2838 Realtek Semiconductor Corp. RTL2838 DVB-T
+  Bus 001 Device 008: ID 0bda:2838 Realtek Semiconductor Corp.
+  Bus 001 Device 005: ID 0bda:2838 Realtek Semiconductor Corp. RTL2838 DVB-T
 
 The important parts are "0bda" (the vendor id) and "2838" (the product id).
 
 Create a new file as root named /etc/udev/rules.d/20.rtlsdr.rules that contains the following line:
-nano /etc/udev/rules.d/20.rtlsdr.rules
-SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2838", GROUP="adm", MODE="0666", SYMLINK+="rtl_sdr"
+  nano /etc/udev/rules.d/20.rtlsdr.rules
+  SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2838", GROUP="adm", MODE="0666", SYMLINK+="rtl_sdr"
 
 With the vendor and product ids for your particular dongle. This should make the dongle accessible to any user in the adm group. and add a /dev/rtl_sdr symlink when the dongle is attached.
 
 ## Get librtlsdr
-cd /home/pi
-git clone https://github.com/steve-m/librtlsdr.git
-cd librtlsdr
-mkdir build
-cd build
-cmake ../ -DINSTALL_UDEV_RULES=ON
-make
-sudo make install
-sudo ldconfig
+  cd /home/pi
+  git clone https://github.com/steve-m/librtlsdr.git
+  cd librtlsdr
+  mkdir build
+  cd build
+  cmake ../ -DINSTALL_UDEV_RULES=ON
+  make
+  sudo make install
+  sudo ldconfig
 
 ## Create ~/profile
-sudo nano ~/.profile
-export GOROOT=/usr/lib/go
-export GOPATH=$HOME/work
-export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
-source ~/.profile
+  sudo nano ~/.profile
+  export GOROOT=/usr/lib/go
+  export GOPATH=$HOME/work
+  export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+  source ~/.profile
 
 ## Get the rtldavis package
-cd /home/pi
-go get -v github.com/lheijst/rtldavis
+  cd /home/pi
+  go get -v github.com/lheijst/rtldavis
 
 ## Compiling GO sources
-cd $GOPATH/src/github.com/lheijst/rtldavis
-git submodule init
-git submodule update
-go install -v .
+  cd $GOPATH/src/github.com/lheijst/rtldavis
+  git submodule init
+  git submodule update
+  go install -v .
 
 ## Start program rtldavis
-$GOPATH/bin/rtldavis
+  $GOPATH/bin/rtldavis
 
 ### Usage
 Available command-line flags are as follows:
