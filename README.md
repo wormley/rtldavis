@@ -78,7 +78,7 @@ Available command-line flags are as follows:
 ```
 Usage of rtldavis:
   -tr [transmitters]
-    	code of the stations to listen for: tr1=1 tr2=4 tr3=8 tr4=8 tr5=16 tr6=32 tr7=64 tr8=129
+    	code of the stations to listen for: tr1=1 tr2=2 tr3=4 tr4=8 tr5=16 tr6=32 tr7=64 tr8=128
         Default = 1
 
   -tf [tranceiver frequencies]
