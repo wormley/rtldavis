@@ -194,7 +194,7 @@ func NewMessage(pkt dsp.Packet) (m Message) {
 	m.Idx = pkt.Idx
 	m.Data = make([]byte, len(pkt.Data)-2)
 	copy(m.Data, pkt.Data[2:])
-	m.ID = m.Data[0] & 0xF
+	m.ID = m.Data[0] & 0x7
 	return m
 }
 
