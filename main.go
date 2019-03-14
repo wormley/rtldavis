@@ -254,7 +254,9 @@ func main() {
 			//		full cycle of the pattern.
 
 			if testFreq {
-				log.Printf("TESTFREQ %d: Frequency %d: NOK", testNumber, testChannelFreq)
+				if testNumber > 0 {
+					log.Printf("TESTFREQ %d: Frequency %d: NOK", testNumber, testChannelFreq)
+				}
 				loopPeriod = time.Duration(maxFreq +1) * idLoopPeriods[actChan[maxChan-1]]
 				loopTimer = time.After(loopPeriod)
 				nextHop <- p.SetHop(0)
@@ -307,11 +309,13 @@ func main() {
 			for _, msg := range p.Parse(p.Demodulate(block)) {
 				if testFreq {
 					if testNumber > 0 {
-						log.Printf("TESTFREQ %d: Frequency %d (freqError=%d): OK, msg.data: %02X\n", testNumber, testChannelFreq, freqError, msg.Data)
+						if msgIdToChan[int(msg.ID)] != 9 {
+							log.Printf("TESTFREQ %d: Frequency %d (freqError=%d): OK, msg.data: %02X\n", testNumber, testChannelFreq, freqError, msg.Data)
+							loopPeriod = time.Duration(maxFreq +1) * idLoopPeriods[actChan[maxChan-1]]
+							loopTimer = time.After(loopPeriod)
+							nextHop <- p.SetHop(0)
+						}
 					}
-					loopPeriod = time.Duration(maxFreq +1) * idLoopPeriods[actChan[maxChan-1]]
-					loopTimer = time.After(loopPeriod)
-					nextHop <- p.SetHop(0)
 					continue  // read next message
 				}
 				curTime = time.Now().UnixNano()
