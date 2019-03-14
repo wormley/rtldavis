@@ -218,7 +218,7 @@ func main() {
 			if err := dev.SetCenterFreq(channelFreq); err != nil {
 				//log.Fatal(err)
 				verboseLogger.Printf("SetCenterFreq error: %s\n", err)
-				verboseLogger.Printf("SetCenterFreq = %s\n", hop.ChannelFreq)
+				verboseLogger.Printf("SetCenterFreq = %d\n", hop.ChannelFreq)
 			}
 		}
 	}()
