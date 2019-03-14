@@ -79,12 +79,12 @@ var (
 	loopPeriod		time.Duration // period since now when next hop sequence will time-out
 	actHopChanIdx	int			// channel-id of actual hop sequence (EU: 0-4, US: 0-50)
 	nextHopChan		int			// channel-id of next hop
+	channelFreq		int			// frequency of the channel to transmit
 	freqError		int			// frequency error of last hop
 
 	// controll
 	initTransmitrs	bool		// start an init session to synchronize all defined channels
 	handleNxtPacket	bool		// start preparation for reading next data packet
-	saveFreqError	bool		// save last freqError when true
 
 	// init
 	visitCount		int			// number of different active channels seen during init
