@@ -1,4 +1,3 @@
-
 /*
    rtldavis, an rtl-sdr receiver for Davis Instruments weather stations.
    Copyright (C) 2015  Douglas Hall
@@ -20,7 +19,7 @@
    Added: EU-frequencies
    Removed: frequency correction
    Removed: parsing
-   VERSION: 0.7
+   VERSION: 0.8
 */
 package protocol
 
@@ -47,7 +46,6 @@ type Parser struct {
 	dsp.Demodulator
 	crc.CRC
 	Cfg dsp.PacketConfig
-	ID				int
 	ChannelCount 	int
 	channels		[]int
 	hopIdx			int
@@ -56,7 +54,7 @@ type Parser struct {
 	freqError		int
 }
 
-func NewParser(symbolLength, id int, tf string) (p Parser) {
+func NewParser(symbolLength int, tf string) (p Parser) {
 	p.Cfg = NewPacketConfig(symbolLength)
 	p.Demodulator = dsp.NewDemodulator(&p.Cfg)
 	p.CRC = crc.NewCRC("CCITT-16", 0, 0x1021, 0)
@@ -64,7 +62,8 @@ func NewParser(symbolLength, id int, tf string) (p Parser) {
 	if tf == "EU" {
 		p.channels = []int{ 
 // my-orig	868072000, 868192000, 868312000, 868432000, 868552000,
-			868073575, 868192150, 868312125, 868433150, 868553825,
+// ok		868073575, 868192150, 868312125, 868433150, 868553825,
+			868078500, 868199000, 868318500, 868438500, 868560000,
 		}
 		p.ChannelCount = len(p.channels)
 
@@ -105,7 +104,6 @@ func NewParser(symbolLength, id int, tf string) (p Parser) {
 	for i := 0; i < p.ChannelCount; i++ {
 		p.reverseHopPattern[i] = (p.ChannelCount - p.hopPattern[i]) % p.ChannelCount
 	}
-	p.ID = id
 	return
 }
 
@@ -116,7 +114,7 @@ type Hop struct {
 }
 
 func (h Hop) String() string {
-	return fmt.Sprintf("{ChannelIdx:%2d ChannelFreq:%d FreqError:%d}",
+	return fmt.Sprintf("{ChannelIdx:%d ChannelFreq:%d FreqError:%d}",
 		h.ChannelIdx, h.ChannelFreq, h.FreqError,
 	)
 }
