@@ -17,7 +17,7 @@
 
 	Modified by Luc Heijst - March 2019
 	Added: Multi-channel hopping
-	Added: options 	-ex, -u, -fc, -tf, -tr, 
+	Added: options 	-ex, -u, -fc, -tf, -tr, -maxmissed, 
 			-startfreq, -endfreq, -stepfreq 
 	Removed: option	-id, -v
 */
@@ -40,6 +40,7 @@ var (
 	// program settings
 	ex				int			// -ex = extra loopTime in msex
 	fc				int			// -fc = frequency correction for all channels
+	maxmissed		int			// -maxmisssed = max missed-packets-in-a-row before new init
 	transmitterFreq	*string		// -tf = transmitter frequencies, EU, or US
 	undefined		*bool		// -un = log undefined signals
 
@@ -114,6 +115,7 @@ var (
 	flag.IntVar(&tr, "tr", 1, "transmitters to listen for: tr1=1, tr2=2, tr3=4, tr4=8, tr5=16 tr6=32, tr7=64, tr8=128")
 	flag.IntVar(&ex, "ex", 0, "extra loopPeriod time in msec")
 	flag.IntVar(&fc, "fc", 0, "frequency correction in Hz for all channels")
+	flag.IntVar(&maxmissed, "maxmissed", 51, "max missed-packets-in-a-row before new init")
 	flag.IntVar(&startFreq, "startfreq", 0, "test")
 	flag.IntVar(&endFreq, "endfreq", 0, "test")
 	flag.IntVar(&stepFreq, "stepfreq", 0, "test")
@@ -263,7 +265,7 @@ func main() {
 					chMissPerFreq[actChan[expectedChanPtr]][p.SeqToHop(nextHopChan)]++
 					log.Printf("ID:%d packet missed (%d), missed per freq: %d", actChan[expectedChanPtr], chAlarmCnts[expectedChanPtr], chMissPerFreq[actChan[expectedChanPtr]][0:maxFreq])
 					for i := 0; i < maxChan; i++ {
-						if chAlarmCnts[i] > 5 {
+						if chAlarmCnts[i] > maxmissed {
 							chAlarmCnts[i] = 0   // reset current alarm count
 							initTransmitrs = true
 						}
@@ -393,7 +395,6 @@ func HandleNextHopChannel() {
 	}
 	expectedChanPtr = Min(chNextVisits[0:maxChan])
 }
-
 func Min(values []int64) (ptr int) {
 	var min int64
 	min = values[0]
