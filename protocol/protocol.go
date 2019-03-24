@@ -141,6 +141,11 @@ func (p *Parser) HopToSeq(n int) int {
 	return p.reverseHopPatrn[n % p.ChannelCount]
 }
 
+// Find hop-id with sequence-id
+func (p *Parser) SeqToHop(n int) int {
+	return p.hopPattern[n % p.ChannelCount]
+}
+
 // Given a list of packets, check them for validity and ignore duplicates,
 // return a list of parsed messages.
 func (p *Parser) Parse(pkts []dsp.Packet) (msgs []Message) {
