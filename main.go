@@ -135,7 +135,7 @@ var (
 		}
 		mask = mask << 1
 	}
-	log.Printf("tr=%d fc=%d ex=%d actChan=%d maxChan=%d\n", tr, fc, ex, actChan[0:maxChan], maxChan) 
+	log.Printf("tr=%d fc=%d ex=%d maxmissed=%d actChan=%d maxChan=%d\n", tr, fc, ex, maxmissed, actChan[0:maxChan], maxChan) 
 
 	// Preset loopperiods per id
 	idLoopPeriods[0] = 2562500 * time.Microsecond
