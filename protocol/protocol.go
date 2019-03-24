@@ -19,7 +19,7 @@
    Added: EU-frequencies
    Removed: frequency correction
    Removed: parsing
-   VERSION: 0.8
+   VERSION: 0.9
 */
 package protocol
 
@@ -50,18 +50,24 @@ type Parser struct {
 	channels		[]int
 	hopIdx			int
 	hopPattern		[]int
-	reverseHopPattern []int
+	reverseHopPatrn []int
 	freqError		int
+	chfreq			int
+	freqerrTrChList [8][51][10]int
+	freqerrTrChPtr	[8][51]int
+	freqerrTrChSum	[8][51]int
+	maxTrChList		int
 }
 
 func NewParser(symbolLength int, tf string) (p Parser) {
 	p.Cfg = NewPacketConfig(symbolLength)
 	p.Demodulator = dsp.NewDemodulator(&p.Cfg)
 	p.CRC = crc.NewCRC("CCITT-16", 0, 0x1021, 0)
+	p.maxTrChList = 10
 
 	if tf == "EU" {
 		p.channels = []int{ 
-		868077900, 868197660, 868317420, 868437180, 868556940,  // 20190321
+			868077250, 868197250, 868317250, 868437250, 868557250, // EU test 20190324
 		}
 		p.ChannelCount = len(p.channels)
 
@@ -69,20 +75,20 @@ func NewParser(symbolLength int, tf string) (p Parser) {
 		p.hopPattern = []int{
 			0, 2, 4, 1, 3,   
 		}
-		p.reverseHopPattern = []int{
+		p.reverseHopPatrn = []int{
 			0, 2, 4, 1, 3,   
 		}
 	} else {
 		p.channels = []int{
-			902355835, 902857585, 903359336, 903861086, 904362837, 904864587,
-			905366338, 905868088, 906369839, 906871589, 907373340, 907875090,
-			908376841, 908878591, 909380342, 909882092, 910383843, 910885593,
-			911387344, 911889094, 912390845, 912892595, 913394346, 913896096,
-			914397847, 914899597, 915401347, 915903098, 916404848, 916906599,
-			917408349, 917910100, 918411850, 918913601, 919415351, 919917102,
-			920418852, 920920603, 921422353, 921924104, 922425854, 922927605,
-			923429355, 923931106, 924432856, 924934607, 925436357, 925938108,
-			926439858, 926941609, 927443359,
+			902348338, 902850088, 903351839, 903853589, 904355340, 904857090, // US test 20190324
+			905358841, 905860591, 906362342, 906864092, 907365843, 907867593, 
+			908369344, 908871094, 909372845, 909874595, 910376346, 910878096, 
+			911379847, 911881597, 912383348, 912885099, 913386849, 913888599, 
+			914390350, 914892100, 915393850, 915895601, 916397351, 916899102, 
+			917400852, 917902603, 918404353, 918906104, 919407854, 919909605, 
+			920411355, 920913106, 921414856, 921916607, 922418357, 922920108, 
+			923421858, 923923609, 924425359, 924927110, 925428860, 925930611, 
+			926432361, 926934112, 927435862, 
 		}
 		p.ChannelCount = len(p.channels)
 
@@ -92,15 +98,15 @@ func NewParser(symbolLength int, tf string) (p Parser) {
 			49, 21, 2, 30, 42, 14, 48, 7, 24, 34, 45, 1, 17, 39, 26, 9, 31, 50,
 			37, 12, 20, 33, 4, 43, 28, 15, 35, 6, 40, 11, 23, 46, 18,
 		}
-		p.reverseHopPattern = []int{
+		p.reverseHopPatrn = []int{
 			0, 19, 41, 25, 8, 47, 32, 13, 36, 22, 3, 29, 44, 16, 5, 27, 38, 10,
 			49, 21, 2, 30, 42, 14, 48, 7, 24, 34, 45, 1, 17, 39, 26, 9, 31, 50,
 			37, 12, 20, 33, 4, 43, 28, 15, 35, 6, 40, 11, 23, 46, 18,
 		}
 	}
-	// create reverseHopPattern
+	// create reverseHopPatrn
 	for i := 0; i < p.ChannelCount; i++ {
-		p.reverseHopPattern[i] = (p.ChannelCount - p.hopPattern[i]) % p.ChannelCount
+		p.reverseHopPatrn[i] = (p.ChannelCount - p.hopPattern[i]) % p.ChannelCount
 	}
 	return
 }
@@ -132,12 +138,7 @@ func (p *Parser) SetHop(n int) Hop {
 
 // Find sequence-id with hop-id
 func (p *Parser) HopToSeq(n int) int {
-	return p.reverseHopPattern[n % p.ChannelCount]
-}
-
-// Find hop-id with sequence-id
-func (p *Parser) SeqToHop(n int) int {
-	return p.hopPattern[n % p.ChannelCount]
+	return p.reverseHopPatrn[n % p.ChannelCount]
 }
 
 // Given a list of packets, check them for validity and ignore duplicates,
@@ -161,7 +162,6 @@ func (p *Parser) Parse(pkts []dsp.Packet) (msgs []Message) {
 		if p.Checksum(pkt.Data[2:]) != 0 {
 			continue
 		}
-
 		// Look at the packet's tail to determine frequency error between
 		// transmitter and receiver.
 		lower := pkt.Idx + 8*p.Cfg.SymbolLength
@@ -175,15 +175,24 @@ func (p *Parser) Parse(pkts []dsp.Packet) (msgs []Message) {
 
 		// The tail is a series of zero symbols. The driminator's output is
 		// measured in radians.
-		p.freqError = -int(9600 + (mean*float64(p.Cfg.SampleRate))/(2*math.Pi))
-		msgs = append(msgs, NewMessage(pkt))
+		freqerr := -int(9600 + (mean*float64(p.Cfg.SampleRate))/(2*math.Pi))
+		msg := NewMessage(pkt)
+		msgs = append(msgs, msg)
+		// Per transmitter and per channel we have a list of p.maxTrChList frequency errors
+		// The average value of the frequencu erreors in the list is used for the frequency correction.
+		tr := int(msg.ID)
+		ch := p.hopPattern[p.hopIdx]
+		p.freqerrTrChSum[tr][ch] = p.freqerrTrChSum[tr][ch] - p.freqerrTrChList[tr][ch][p.freqerrTrChPtr[tr][ch]] + freqerr
+		p.freqerrTrChList[tr][ch][p.freqerrTrChPtr[tr][ch]] = freqerr
+		p.freqerrTrChPtr[tr][ch] = (p.freqerrTrChPtr[tr][ch] + 1) % p.maxTrChList
+		p.freqError = p.freqerrTrChSum[tr][ch] / 10
 	}
 	return
 }
 
 type Message struct {
 	dsp.Packet
-	ID     byte
+	ID 	byte
 }
 
 func NewMessage(pkt dsp.Packet) (m Message) {
