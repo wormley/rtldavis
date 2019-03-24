@@ -60,7 +60,7 @@ var (
 	chAlarmCnts		[8]int		// numbers of missed-counts-in-a-row
 	chLastHops		[8]int		// last hop channel-ids (sequential order)
 	chNextHops		[8]int		// next hop channel-ids (sequential order)
-	chMissPerFreq	[8][5]int	// transmitter missed per frequency channel; temporary (not for US freq)
+	chMissPerFreq	[8][51]int	// transmitter missed per frequency channel
 
 	// per id (index is msg.ID)
 	idLoopPeriods 	[8]time.Duration // durations of one loop (higher IDs: longer durations)
@@ -261,7 +261,7 @@ func main() {
 					// increase missed counters
 					chAlarmCnts[expectedChanPtr]++
 					chMissPerFreq[actChan[expectedChanPtr]][nextHopChan]++
-					log.Printf("ID:%d packet missed (%d), missed per freq: %d", actChan[expectedChanPtr], chAlarmCnts[expectedChanPtr], chMissPerFreq[actChan[expectedChanPtr]])
+					log.Printf("ID:%d packet missed (%d), missed per freq: %d", actChan[expectedChanPtr], chAlarmCnts[expectedChanPtr], chMissPerFreq[actChan[expectedChanPtr]][0:maxFreq])
 					for i := 0; i < maxChan; i++ {
 						if chAlarmCnts[i] > 5 {
 							chAlarmCnts[i] = 0   // reset current alarm count
