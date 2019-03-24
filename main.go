@@ -19,7 +19,7 @@
 	Added: Multi-channel hopping
 	Added: options 	-ex, -u, -fc, -tf, -tr, 
 			-startfreq, -endfreq, -stepfreq 
-	Removed: option -id, -v
+	Removed: option	-id, -v
 */
 package main
 
@@ -56,11 +56,11 @@ var (
 	// per channel (index is actChan[ch])
 	chLastVisits	[8]int64	// last visit times in UTC-nanoseconds
 	chNextVisits	[8]int64	// next visit times (future) in UTC-nanoseconds
-	chNextVisitsFmt	[8]string	// next visit times (future) in UTC-time-string
 	chTotMsgs		[8]int		// total received messages since startup
 	chAlarmCnts		[8]int		// numbers of missed-counts-in-a-row
 	chLastHops		[8]int		// last hop channel-ids (sequential order)
 	chNextHops		[8]int		// next hop channel-ids (sequential order)
+	chMissPerFreq	[8][5]int	// transmitter missed per frequency channel; temporary (not for US freq)
 
 	// per id (index is msg.ID)
 	idLoopPeriods 	[8]time.Duration // durations of one loop (higher IDs: longer durations)
@@ -76,6 +76,7 @@ var (
 	nextHopChan		int			// channel-id of next hop
 	channelFreq		int			// frequency of the channel to transmit
 	freqError		int			// frequency error of last hop
+	freqCorrection	int			// frequencyCorrection (average freqError per transmitter per channel)
 
 	// controll
 	initTransmitrs	bool		// start an init session to synchronize all defined channels
@@ -99,7 +100,7 @@ var (
 
 
 func init() {
-	VERSION := "0.9"
+	VERSION := "0.10"
 var (
 	tr		int
 	mask	int
@@ -189,8 +190,9 @@ func main() {
 	nextHop := make(chan protocol.Hop, 1)
 	go func() {
 		for hop := range nextHop {
+			freqError = hop.FreqError
 			if testFreq {
-				freqError = hop.FreqError
+				freqCorrection = 0
 				testChannelFreq = testChannelFreq + stepFreq
 				testNumber++ 
 				if testChannelFreq > endFreq {
@@ -199,11 +201,12 @@ func main() {
 				}
 				channelFreq = testChannelFreq
 			} else {
+				freqCorrection = freqError
 				log.Printf("Hop: %s\n", hop)
 				actHopChanIdx = hop.ChannelIdx
 				channelFreq = hop.ChannelFreq
 			}
-			if err := dev.SetCenterFreq(channelFreq + fc); err != nil {
+			if err := dev.SetCenterFreq(channelFreq + freqCorrection + fc); err != nil {
 				//log.Fatal(err)  // no reason top stop program for one error
 				log.Printf("SetCenterFreq: %d error: %s\n", hop.ChannelFreq, err)
 			}
@@ -257,7 +260,8 @@ func main() {
 					chLastHops[expectedChanPtr] = (chLastHops[expectedChanPtr] + 1) % maxFreq
 					// increase missed counters
 					chAlarmCnts[expectedChanPtr]++
-					log.Printf("ID:%d packet missed (%d)", actChan[expectedChanPtr], chAlarmCnts[expectedChanPtr])
+					chMissPerFreq[actChan[expectedChanPtr]][nextHopChan]++
+					log.Printf("ID:%d packet missed (%d), missed per freq: %d", actChan[expectedChanPtr], chAlarmCnts[expectedChanPtr], chMissPerFreq[actChan[expectedChanPtr]])
 					for i := 0; i < maxChan; i++ {
 						if chAlarmCnts[i] > 5 {
 							chAlarmCnts[i] = 0   // reset current alarm count
@@ -268,12 +272,10 @@ func main() {
 				// test again; situation may have changed
 				if !initTransmitrs {
 					HandleNextHopChannel()
-					nextHopChan = p.SeqToHop(chNextHops[expectedChanPtr])
-					// loopPeriod standard increased with 200 msec
+					nextHopChan = chNextHops[expectedChanPtr]
 					loopPeriod = time.Duration(chNextVisits[expectedChanPtr] - curTime + int64(62500 * time.Microsecond) + int64(ex * 1000000))
 					loopTimer = time.After(loopPeriod)
-					//log.Printf("loopTimer expired; hop to channelIdx: %d %s ID=%d\n", nextHopChan, chNextVisitsFmt[expectedChanPtr], actChan[expectedChanPtr])
-					nextHop <- p.SetHop(chNextHops[expectedChanPtr])
+					nextHop <- p.SetHop(nextHopChan)
 				} else {
 					// reset chLastVisits
 					for i := 0; i < maxChan; i++ {
@@ -355,12 +357,10 @@ func main() {
 			}
 			if handleNxtPacket {
 				HandleNextHopChannel()
-				nextHopChan = p.SeqToHop(chNextHops[expectedChanPtr])
-				// loopPeriod standard increased with 200 msec
+				nextHopChan = chNextHops[expectedChanPtr]
 				loopPeriod = time.Duration(chNextVisits[expectedChanPtr] - curTime + int64(62500 * time.Microsecond) + int64(ex * 1000000))
 				loopTimer = time.After(loopPeriod)
-				//log.Printf("Hop to channelIdx: %d %s ID=%d\n", nextHopChan, chNextVisitsFmt[expectedChanPtr], actChan[expectedChanPtr])
-				nextHop <- p.SetHop(chNextHops[expectedChanPtr])
+				nextHop <- p.SetHop(nextHopChan)
 			}
 		}
 	}
@@ -392,10 +392,6 @@ func HandleNextHopChannel() {
 		}
 	}
 	expectedChanPtr = Min(chNextVisits[0:maxChan])
-	// for printing purposes only
-	for i := 0; i < maxChan; i++ {
-		chNextVisitsFmt[i] = convTim(chNextVisits[i]).Format("15:04:05.999999")
-	}
 }
 
 func Min(values []int64) (ptr int) {
