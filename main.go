@@ -260,7 +260,7 @@ func main() {
 					chLastHops[expectedChanPtr] = (chLastHops[expectedChanPtr] + 1) % maxFreq
 					// increase missed counters
 					chAlarmCnts[expectedChanPtr]++
-					chMissPerFreq[actChan[expectedChanPtr]][nextHopChan]++
+					chMissPerFreq[actChan[expectedChanPtr]][p.SeqToHop(nextHopChan)]++
 					log.Printf("ID:%d packet missed (%d), missed per freq: %d", actChan[expectedChanPtr], chAlarmCnts[expectedChanPtr], chMissPerFreq[actChan[expectedChanPtr]][0:maxFreq])
 					for i := 0; i < maxChan; i++ {
 						if chAlarmCnts[i] > 5 {
