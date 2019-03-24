@@ -47,12 +47,16 @@ With the vendor and product ids for your particular dongle. This should make the
     sudo make install
     sudo ldconfig
 
-#### Create ~/profile
+#### Change / create ~/profile
 
     sudo nano ~/.profile
+    add at the end of the file:
+    
     export GOROOT=/usr/lib/go
     export GOPATH=$HOME/work
     export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+    
+#### Activate changed / new ~/profile
     source ~/.profile
 
 #### Get the rtldavis package
