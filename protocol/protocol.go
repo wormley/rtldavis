@@ -70,13 +70,12 @@ func NewParser(symbolLength int, tf string) (p Parser) {
 			868077250, 868197250, 868317250, 868437250, 868557250, // EU test 20190324
 		}
 		p.ChannelCount = len(p.channels)
-
 		p.hopIdx = rand.Intn(p.ChannelCount)
 		p.hopPattern = []int{
 			0, 2, 4, 1, 3,   
 		}
 		p.reverseHopPatrn = []int{
-			0, 2, 4, 1, 3,   
+			0, 3, 1, 4, 2,   
 		}
 	} else {
 		p.channels = []int{
@@ -91,7 +90,6 @@ func NewParser(symbolLength int, tf string) (p Parser) {
 			926432361, 926934112, 927435862, 
 		}
 		p.ChannelCount = len(p.channels)
-
 		p.hopIdx = rand.Intn(p.ChannelCount)
 		p.hopPattern = []int{
 			0, 19, 41, 25, 8, 47, 32, 13, 36, 22, 3, 29, 44, 16, 5, 27, 38, 10,
@@ -99,14 +97,10 @@ func NewParser(symbolLength int, tf string) (p Parser) {
 			37, 12, 20, 33, 4, 43, 28, 15, 35, 6, 40, 11, 23, 46, 18,
 		}
 		p.reverseHopPatrn = []int{
-			0, 19, 41, 25, 8, 47, 32, 13, 36, 22, 3, 29, 44, 16, 5, 27, 38, 10,
-			49, 21, 2, 30, 42, 14, 48, 7, 24, 34, 45, 1, 17, 39, 26, 9, 31, 50,
-			37, 12, 20, 33, 4, 43, 28, 15, 35, 6, 40, 11, 23, 46, 18,
+			0, 29, 20, 10, 40, 14, 45, 25, 4, 33, 17, 47, 37, 7, 23, 43, 13, 
+			30, 50, 1, 38, 19, 9, 48, 26, 3, 32, 15, 42, 11, 21, 34, 6, 39, 
+			27, 44, 8, 36, 16, 31, 46, 2, 22, 41, 12, 28, 49, 5, 24, 18, 35, 
 		}
-	}
-	// create reverseHopPatrn
-	for i := 0; i < p.ChannelCount; i++ {
-		p.reverseHopPatrn[i] = (p.ChannelCount - p.hopPattern[i]) % p.ChannelCount
 	}
 	return
 }
