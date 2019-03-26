@@ -25,6 +25,7 @@ package protocol
 
 import (
 	"fmt"
+//	"log"
 	"math"
 	"math/rand"
 
@@ -181,10 +182,13 @@ func (p *Parser) Parse(pkts []dsp.Packet) (msgs []Message) {
 		// The average value of the frequencu erreors in the list is used for the frequency correction.
 		tr := int(msg.ID)
 		ch := p.hopPattern[p.hopIdx]
+//		old := p.freqerrTrChList[tr][ch][p.freqerrTrChPtr[tr][ch]]
 		p.freqerrTrChSum[tr][ch] = p.freqerrTrChSum[tr][ch] - p.freqerrTrChList[tr][ch][p.freqerrTrChPtr[tr][ch]] + freqerr
 		p.freqerrTrChList[tr][ch][p.freqerrTrChPtr[tr][ch]] = freqerr
 		p.freqerrTrChPtr[tr][ch] = (p.freqerrTrChPtr[tr][ch] + 1) % p.maxTrChList
 		p.freqError = p.freqerrTrChSum[tr][ch] / 10
+//		log.Printf("tr=%d ch=%d old=%d freqerr=%d avgfreqErr=%d ptr=%d sum=%d", tr, ch, old, freqerr, p.freqError, p.freqerrTrChPtr[tr][ch], p.freqerrTrChSum[tr][ch])
+//		log.Printf("freqerrTrChList=%d", p.freqerrTrChList[tr][ch])
 	}
 	return
 }
