@@ -17,7 +17,7 @@
 
 	Modified by Luc Heijst - March 2019
 	Added: Multi-channel hopping
-	Added: options 	-ex, -u, -fc, -tf, -tr, -maxmissed, 
+	Added: options 	-ex, -u, -fc, -ppm, -tf, -tr, -maxmissed, 
 			-startfreq, -endfreq, -stepfreq 
 	Removed: option	-id, -v
 */
@@ -40,6 +40,7 @@ var (
 	// program settings
 	ex				int			// -ex = extra loopTime in msex
 	fc				int			// -fc = frequency correction for all channels
+	ppm				int			// -ppm = frequency correction of rtl dongle in ppm
 	maxmissed		int			// -maxmisssed = max missed-packets-in-a-row before new init
 	transmitterFreq	*string		// -tf = transmitter frequencies, EU, or US
 	undefined		*bool		// -un = log undefined signals
@@ -101,7 +102,7 @@ var (
 
 
 func init() {
-	VERSION := "0.10"
+	VERSION := "0.11"
 var (
 	tr		int
 	mask	int
@@ -115,6 +116,7 @@ var (
 	flag.IntVar(&tr, "tr", 1, "transmitters to listen for: tr1=1, tr2=2, tr3=4, tr4=8, tr5=16 tr6=32, tr7=64, tr8=128")
 	flag.IntVar(&ex, "ex", 0, "extra loopPeriod time in msec")
 	flag.IntVar(&fc, "fc", 0, "frequency correction in Hz for all channels")
+	flag.IntVar(&ppm, "ppm", 0, "frequency correction of rtl dongle in ppm")
 	flag.IntVar(&maxmissed, "maxmissed", 51, "max missed-packets-in-a-row before new init")
 	flag.IntVar(&startFreq, "startfreq", 0, "test")
 	flag.IntVar(&endFreq, "endfreq", 0, "test")
@@ -124,7 +126,7 @@ var (
 
 	flag.Parse()
 
-	log.Printf("rtldavis.go VERSION=%s\n", VERSION)
+	log.Printf("rtldavis.go VERSION=%s", VERSION)
 	// convert tranceiver code to act channels
 	mask = 1
 	for i := range actChan {
@@ -135,7 +137,7 @@ var (
 		}
 		mask = mask << 1
 	}
-	log.Printf("tr=%d fc=%d ex=%d maxmissed=%d actChan=%d maxChan=%d\n", tr, fc, ex, maxmissed, actChan[0:maxChan], maxChan) 
+	log.Printf("tr=%d fc=%d ppm=%d ex=%d maxmissed=%d actChan=%d maxChan=%d", tr, fc, ppm, ex, maxmissed, actChan[0:maxChan], maxChan) 
 
 	// Preset loopperiods per id
 	idLoopPeriods[0] = 2562500 * time.Microsecond
@@ -145,7 +147,7 @@ var (
 
 	// check if test
 	if startFreq != 0 && endFreq !=0 && stepFreq != 0 {
-		log.Printf("TEST: startFreq=%d endFreq=%d stepFreq=%d\n", startFreq, endFreq, stepFreq)
+		log.Printf("TEST: startFreq=%d endFreq=%d stepFreq=%d", startFreq, endFreq, stepFreq)
 		testFreq = true
 		testChannelFreq = startFreq - stepFreq
 	}
@@ -164,8 +166,8 @@ func main() {
 	}
 
 	hop := p.SetHop(0)	// start program with first hop frequency
-	log.Println(hop)
-	if err := dev.SetCenterFreq(hop.ChannelFreq); err != nil {
+	log.Printf("Hop: %s", hop)
+	if err := dev.SetCenterFreq(hop.ChannelFreq + fc); err != nil {
 		log.Fatal(err)
 	}
 
@@ -177,6 +179,16 @@ func main() {
 		log.Fatal(err)
 	}
 
+	err = dev.SetFreqCorrection(ppm)
+	if err != nil {
+		log.Printf("SetFreqCorrection %d ppm Failed, error: %s\n", ppm, err)
+	} else {
+		log.Printf("SetFreqCorrection %d ppm Successful\n", ppm)
+	}
+
+	tgain := dev.GetTunerGain()
+	log.Printf("GetTunerGain: %d Db\n", tgain)
+
 	if err := dev.ResetBuffer(); err != nil {
 		log.Fatal(err)
 	}
@@ -186,6 +198,7 @@ func main() {
 	go dev.ReadAsync(func(buf []byte) {
 		out.Write(buf)
 	}, nil, 1, p.Cfg.BlockSize2)
+
 
 	// Handle frequency hops concurrently since the callback will stall if we
 	// stop reading to hop.
@@ -204,13 +217,13 @@ func main() {
 				channelFreq = testChannelFreq
 			} else {
 				freqCorrection = freqError
-				log.Printf("Hop: %s\n", hop)
+				log.Printf("Hop: %s", hop)
 				actHopChanIdx = hop.ChannelIdx
 				channelFreq = hop.ChannelFreq
 			}
 			if err := dev.SetCenterFreq(channelFreq + freqCorrection + fc); err != nil {
 				//log.Fatal(err)  // no reason top stop program for one error
-				log.Printf("SetCenterFreq: %d error: %s\n", hop.ChannelFreq, err)
+				log.Printf("SetCenterFreq: %d error: %s", hop.ChannelFreq, err)
 			}
 		}
 	}()
@@ -231,7 +244,7 @@ func main() {
 	maxFreq = p.ChannelCount
 
 	// Set the idLoopPeriods for one full rotation of the pattern + 1. 
-	loopPeriod = time.Duration(maxFreq +1) * idLoopPeriods[actChan[maxChan-1]]
+	loopPeriod = time.Duration(maxFreq +2) * idLoopPeriods[actChan[maxChan-1]]
 	loopTimer := time.After(loopPeriod)  // loopTimer of highest transmitter
 	log.Printf("Init channels: wait max %d seconds for a message of each transmitter", loopPeriod/1000000000)
 
@@ -249,7 +262,7 @@ func main() {
 				if testNumber > 0 {
 					log.Printf("TESTFREQ %d: Frequency %d: NOK", testNumber, testChannelFreq)
 				}
-				loopPeriod = time.Duration(maxFreq +1) * idLoopPeriods[actChan[maxChan-1]]
+				loopPeriod = time.Duration(maxFreq +2) * idLoopPeriods[actChan[maxChan-1]]
 				loopTimer = time.After(loopPeriod)
 				nextHop <- p.SetHop(0)
 			} else {
@@ -275,7 +288,7 @@ func main() {
 				if !initTransmitrs {
 					HandleNextHopChannel()
 					nextHopChan = chNextHops[expectedChanPtr]
-					loopPeriod = time.Duration(chNextVisits[expectedChanPtr] - curTime + int64(62500 * time.Microsecond) + int64(ex * 1000000))
+					loopPeriod = time.Duration(chNextVisits[expectedChanPtr] - curTime + int64(62500 * time.Microsecond) + int64((ex + 10) * 1000000))
 					loopTimer = time.After(loopPeriod)
 					nextHop <- p.SetHop(nextHopChan)
 				} else {
@@ -285,7 +298,7 @@ func main() {
 					}
 					visitCount = 0
 					totInit++
-					loopPeriod = time.Duration(maxFreq +1) * idLoopPeriods[actChan[maxChan-1]]
+					loopPeriod = time.Duration(maxFreq +2) * idLoopPeriods[actChan[maxChan-1]]
 					loopTimer = time.After(loopPeriod)
 					log.Printf("Init channels: wait max %d seconds for a message of each transmitter", loopPeriod/1000000000)
 					nextHop <- p.SetHop(0)
@@ -299,8 +312,8 @@ func main() {
 				if testFreq {
 					if testNumber > 0 {
 						if msgIdToChan[int(msg.ID)] != 9 {
-							log.Printf("TESTFREQ %d: Frequency %d (freqError=%d): OK, msg.data: %02X\n", testNumber, testChannelFreq, freqError, msg.Data)
-							loopPeriod = time.Duration(maxFreq +1) * idLoopPeriods[actChan[maxChan-1]]
+							log.Printf("TESTFREQ %d: Frequency %d (freqError=%d): OK, msg.data: %02X", testNumber, testChannelFreq, freqError, msg.Data)
+							loopPeriod = time.Duration(maxFreq +2) * idLoopPeriods[actChan[maxChan-1]]
 							loopTimer = time.After(loopPeriod)
 							nextHop <- p.SetHop(0)
 						}
@@ -308,18 +321,18 @@ func main() {
 					continue  // read next message
 				}
 				curTime = time.Now().UnixNano()
-				//log.Printf("msg.Data: %02X\n", msg.Data)
+				//log.Printf("msg.Data: %02X", msg.Data)
 				// Keep track of duplicate packets
 				seen := string(msg.Data)
 				if seen == lastRecMsg {
-					log.Printf("duplicate packet: %02X\n", msg.Data)
+					log.Printf("duplicate packet: %02X", msg.Data)
 					continue  // read next message
 				}
 				lastRecMsg = seen
 				// check if msg comes from undefined sensor
 				if msgIdToChan[int(msg.ID)] == 9 {
 					if *undefined {
-						log.Printf("undefined: %02X ID=%d\n", msg.Data, msg.ID)
+						log.Printf("undefined: %02X ID=%d", msg.Data, msg.ID)
 					}
 					idUndefs[int(msg.ID)]++
 					continue  // read next message
@@ -331,7 +344,7 @@ func main() {
 							visitCount +=1
 							chLastVisits[msgIdToChan[int(msg.ID)]] = curTime
 							chLastHops[msgIdToChan[int(msg.ID)]] = p.HopToSeq(actHopChanIdx)
-							log.Printf("TRANSMITTER %d SEEN\n", msg.ID)
+							log.Printf("TRANSMITTER %d SEEN", msg.ID)
 							if visitCount == maxChan {
 								if maxChan > 1 {
 									log.Printf("ALL TRANSMITTERS SEEN")
@@ -347,10 +360,10 @@ func main() {
 						chLastHops[msgIdToChan[int(msg.ID)]] = p.HopToSeq(actHopChanIdx)
 						chLastVisits[msgIdToChan[int(msg.ID)]] = curTime
 						if *undefined {
-							log.Printf("%02X %d %d %d %d %d msg.ID=%d undefined:%d\n", 
+							log.Printf("%02X %d %d %d %d %d msg.ID=%d undefined:%d", 
 								msg.Data, chTotMsgs[0], chTotMsgs[1], chTotMsgs[2], chTotMsgs[3], totInit, msg.ID, idUndefs)
 						} else {
-							log.Printf("%02X %d %d %d %d %d msg.ID=%d\n", 
+							log.Printf("%02X %d %d %d %d %d msg.ID=%d", 
 								msg.Data, chTotMsgs[0], chTotMsgs[1], chTotMsgs[2], chTotMsgs[3], totInit, msg.ID) 
 						}
 						handleNxtPacket = true
@@ -360,7 +373,7 @@ func main() {
 			if handleNxtPacket {
 				HandleNextHopChannel()
 				nextHopChan = chNextHops[expectedChanPtr]
-				loopPeriod = time.Duration(chNextVisits[expectedChanPtr] - curTime + int64(62500 * time.Microsecond) + int64(ex * 1000000))
+				loopPeriod = time.Duration(chNextVisits[expectedChanPtr] - curTime + int64(62500 * time.Microsecond) + int64((ex + 10) * 1000000))
 				loopTimer = time.After(loopPeriod)
 				nextHop <- p.SetHop(nextHopChan)
 			}
@@ -395,6 +408,7 @@ func HandleNextHopChannel() {
 	}
 	expectedChanPtr = Min(chNextVisits[0:maxChan])
 }
+
 func Min(values []int64) (ptr int) {
 	var min int64
 	min = values[0]
