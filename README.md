@@ -114,8 +114,9 @@ Usage of rtldavis:
         Default = -maxmissed 51
         
   -u [log undefined signals]
-        The program can pick up (i.e. reveive) messages from undefined transmitters, e.g. from a weather station near-by.
-        De messages are discarded, but you may want to see on which channels they are received and how many.
+        The program can pick up (i.e. reveive) messages from undefined transmitters, e.g. from a weather 
+        station near-by. De messages are discarded, but you may want to see on which channels they are 
+        received and how many.
         Default = -u false
 ```
 
@@ -125,7 +126,8 @@ The source of this project is licensed under GPL v3.0. According to [http://choo
 
 #### Required:
 
- * **Disclose Source:** Source code must be made available when distributing the software. In the case of LGPL and OSL 3.0, the source for the library (and not the entire program) must be made available.
+ * **Disclose Source:** Source code must be made available when distributing the software. In the case of LGPL and 
+ OSL 3.0, the source for the library (and not the entire program) must be made available.
  * **License and copyright notice:** Include a copy of the license and copyright notice with the code.
  * **State Changes:** Indicate significant changes made to the code.
 
@@ -142,4 +144,5 @@ The source of this project is licensed under GPL v3.0. According to [http://choo
  * **Hold Liable:** Software is provided without warranty and the software author\/license owner cannot be held liable for damages.
 
 ### Feedback
-If you have any general questions or feedback leave a comment below. For bugs, feature suggestions and anything directly relating to the program itself, submit an issue.
+If you have any general questions or feedback leave a comment below. For bugs, feature suggestions and anything 
+directly relating to the program itself, submit an issue.
