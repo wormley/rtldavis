@@ -108,14 +108,14 @@ Usage of rtldavis:
         Default = -ppm 0
         
   -maxmissed [max missed-packets-in-a-row before new init]
-        Normally you should set this parameter to 4 (-maxmisse 4). During testing of new hardware it
-        may be handy (for US equipment) to leave the default value of 51. The program hops along all 
-        channels and present information about each individual channel. 
+        Normally you should set this parameter to 4 (-maxmissed 4). 
+        During testing of new hardware it may be handy (for US equipment) to leave the default value of 51. 
+        The program hops along all channels and present information about each individual channel. 
         Default = -maxmissed 51
         
   -u [log undefined signals]
-        The program can pick up (reveive) messages from undefined transmitters, e.g. from the weather station near-by.
-        De messages are discarded, but you may want to see on which channels and how many.
+        The program can pick up (i.e. reveive) messages from undefined transmitters, e.g. from a weather station near-by.
+        De messages are discarded, but you may want to see on which channels they are received and how many.
         Default = -u false
 ```
 
