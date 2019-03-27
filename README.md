@@ -14,14 +14,14 @@ This repository is a fork of [https://github.com/bemasher/rtldavis](https://gith
 
 #### Install packages needed for rtldavis
 
-sudo apt-get install golang git cmake librtlsdr-dev
+    sudo apt-get install golang git cmake librtlsdr-dev
 
 #### Setup Udev Rules
 
 Next, you need to add some udev rules to make the dongle available for the non-root users. First you want to find the vendor id and product id for your dongle.
 The way I did this was to run:
 
-lsusb
+    lsusb
 
 The last line was the Realtek dongle:
     Bus 001 Device 008: ID 0bda:2838 Realtek Semiconductor Corp.
@@ -81,17 +81,42 @@ Available command-line flags are as follows:
 
 ```
 Usage of rtldavis:
+
   -tr [transmitters]
-    	code of the stations to listen for: tr1=1 tr2=2 tr3=4 tr4=8 tr5=16 tr6=32 tr7=64 tr8=128
-        Default = 1
+    	code of the stations to listen for: 
+        tr1=1 tr2=2 tr3=4 tr4=8 tr5=16 tr6=32 tr7=64 tr8=128
+        or the Davis syntax (first transmitter ID has value 0):
+        ID 0=1 ID 1=2 ID 2=4 ID 3=8 ID 4=16 ID 5=32 ID 6=64 ID 7=128
+        When two or more transmitters are combined, add the numbers.
+        Example: ID0 and ID2 combined is 1 + 4 => -tr 5
+        
+        Default = -tr 1 (ID 0)
 
   -tf [tranceiver frequencies]
         EU or US
-        Default = EU
+        Default = -tf EU
 
   -ex [extra loop_delay in ms]
         In case a lot of messages are missed we might try to use the -ex parameter, like -ex 200
+        Note: A negative value will probably lead to message loss
         Default = -ex 0
+ 
+  -fc [frequency correction in Hz for all channels]
+        Default = -fc 0
+        
+  -ppm [frequency correction of rtl dongle in ppm]
+        Default = -ppm 0
+        
+  -maxmissed [max missed-packets-in-a-row before new init]
+        Normally you should set this parameter to 4 (-maxmisse 4). During testing of new hardware it
+        may be handy (for US equipment) to leave the default value of 51. The program hops along all 
+        channels and present information about each individual channel. 
+        Default = -maxmissed 51
+        
+  -u [log undefined signals]
+        The program can pick up (reveive) messages from undefined transmitters, e.g. from the weather station near-by.
+        De messages are discarded, but you may want to see on which channels and how many.
+        Default = -u false
 ```
 
 ### License
