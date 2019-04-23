@@ -17,7 +17,7 @@
 
 	Modified by Luc Heijst - March 2019
 	Added: Multi-channel hopping
-	Added: options 	-ex, -u, -fc, -ppm, -tf, -tr, -maxmissed, 
+	Added: options 	-ex, -u, -fc, -ppm, -gain, -tf, -tr, -maxmissed, 
 			-startfreq, -endfreq, -stepfreq 
 	Removed: option	-id, -v
 */
@@ -41,6 +41,7 @@ var (
 	ex				int			// -ex = extra loopTime in msex
 	fc				int			// -fc = frequency correction for all channels
 	ppm				int			// -ppm = frequency correction of rtl dongle in ppm
+    gain            int         // -gain = tuner gain in tenths of a Db
 	maxmissed		int			// -maxmisssed = max missed-packets-in-a-row before new init
 	transmitterFreq	*string		// -tf = transmitter frequencies, EU, or US
 	undefined		*bool		// -un = log undefined signals
@@ -102,7 +103,7 @@ var (
 
 
 func init() {
-	VERSION := "0.11"
+	VERSION := "0.12"
 var (
 	tr		int
 	mask	int
@@ -117,6 +118,9 @@ var (
 	flag.IntVar(&ex, "ex", 0, "extra loopPeriod time in msec")
 	flag.IntVar(&fc, "fc", 0, "frequency correction in Hz for all channels")
 	flag.IntVar(&ppm, "ppm", 0, "frequency correction of rtl dongle in ppm")
+    flag.IntVar(&gain, "gain", 0, "tuner gain in tenths of Db")
+    // supported gain values: 0, 9, 14, 27, 37, 77, 87, 125, 144, 157, 166, 197, 207,
+    // 229, 254, 280, 297, 328, 338, 364, 372, 386, 402, 421, 434, 439, 445, 480, 496.
 	flag.IntVar(&maxmissed, "maxmissed", 51, "max missed-packets-in-a-row before new init")
 	flag.IntVar(&startFreq, "startfreq", 0, "test")
 	flag.IntVar(&endFreq, "endfreq", 0, "test")
@@ -137,7 +141,7 @@ var (
 		}
 		mask = mask << 1
 	}
-	log.Printf("tr=%d fc=%d ppm=%d ex=%d maxmissed=%d actChan=%d maxChan=%d", tr, fc, ppm, ex, maxmissed, actChan[0:maxChan], maxChan) 
+	log.Printf("tr=%d fc=%d ppm=%d gain=%d ex=%d maxmissed=%d actChan=%d maxChan=%d", tr, fc, ppm, gain, ex, maxmissed, actChan[0:maxChan], maxChan) 
 
 	// Preset loopperiods per id
 	idLoopPeriods[0] = 2562500 * time.Microsecond
@@ -175,9 +179,32 @@ func main() {
 		log.Fatal(err)
 	}
 
-	if err := dev.SetTunerGainMode(false); err != nil {
+    // set SetTunerGainMode 
+    ManualGainMode := true
+	if err := dev.SetTunerGainMode(ManualGainMode); err != nil {
 		log.Fatal(err)
-	}
+    }
+
+    if gain != 0 {
+        gains, err := dev.GetTunerGains()
+        if err != nil {
+            log.Printf("GetTunerGains Failed - error: %s\n", err)
+        } else if len(gains) > 0 {
+            for i := 0; i < len(gains); i++ {
+                log.Printf("Supported tuner gain: %d Db\n", int(gains[i]))
+            }
+        }
+    }
+
+	err = dev.SetTunerGain(gain)
+	if err != nil {
+		log.Printf("SetTunerGain %d gain Failed, error: %s\n", gain, err)
+	} else {
+		log.Printf("SetTunerGain %d Successful\n", gain)
+    }
+
+	tgain := dev.GetTunerGain()
+	log.Printf("GetTunerGain: %d Db\n", tgain)
 
 	err = dev.SetFreqCorrection(ppm)
 	if err != nil {
@@ -185,9 +212,6 @@ func main() {
 	} else {
 		log.Printf("SetFreqCorrection %d ppm Successful\n", ppm)
 	}
-
-	tgain := dev.GetTunerGain()
-	log.Printf("GetTunerGain: %d Db\n", tgain)
 
 	if err := dev.ResetBuffer(); err != nil {
 		log.Fatal(err)
