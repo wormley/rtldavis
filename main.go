@@ -179,8 +179,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-    // set SetTunerGainMode 
+    // set SetTunerGainMode
     ManualGainMode := true
+    if gain == 0 {
+        ManualGainMode = false
+    }
+
 	if err := dev.SetTunerGainMode(ManualGainMode); err != nil {
 		log.Fatal(err)
     }
@@ -194,13 +198,12 @@ func main() {
                 log.Printf("Supported tuner gain: %d Db\n", int(gains[i]))
             }
         }
-    }
-
-	err = dev.SetTunerGain(gain)
-	if err != nil {
-		log.Printf("SetTunerGain %d gain Failed, error: %s\n", gain, err)
-	} else {
-		log.Printf("SetTunerGain %d Successful\n", gain)
+        err = dev.SetTunerGain(gain)
+        if err != nil {
+            log.Printf("SetTunerGain %d gain Failed, error: %s\n", gain, err)
+        } else {
+            log.Printf("SetTunerGain %d Successful\n", gain)
+        }
     }
 
 	tgain := dev.GetTunerGain()
