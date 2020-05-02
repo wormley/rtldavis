@@ -32,7 +32,7 @@ import (
     "os/signal"
     "time"
 
-    "github.com/lheijst/rtldavis/protocol"
+    "protocol"
     "github.com/jpoirier/gortlsdr"
 )
 
@@ -45,6 +45,8 @@ var (
     maxmissed         int            // -maxmisssed = max missed-packets-in-a-row before new init
     transmitterFreq   *string        // -tf = transmitter frequencies, EU, or US
     undefined         *bool          // -un = log undefined signals
+    Debug             *bool           // -d = verbose debugging
+    Disableafc        *bool          // -noafc = disable any automatic corrections
 
     // general
     actChan           [8]int         // list with actual channels (0-7); 
@@ -127,8 +129,14 @@ var (
     flag.IntVar(&stepFreq, "stepfreq", 0, "test")
     transmitterFreq = flag.String("tf", "EU", "transmitter frequencies: EU or US")
     undefined = flag.Bool("u", false, "log undefined signals")
+    Debug = flag.Bool("d", false, "emit verbose debug messages")
+    Disableafc = flag.Bool("noafc", false, "disable any AFC")
+
 
     flag.Parse()
+    protocol.Debug = *Debug
+    protocol.Disableafc = *Disableafc
+
 
     log.Printf("rtldavis.go VERSION=%s", VERSION)
     // convert tranceiver code to act channels
@@ -248,6 +256,9 @@ func main() {
                 actHopChanIdx = hop.ChannelIdx
                 channelFreq = hop.ChannelFreq
             }
+            if *Disableafc {freqCorrection=0}
+            if *Debug {log.Printf("Applied Correction: %d",freqCorrection)}
+            
             if err := dev.SetCenterFreq(channelFreq + freqCorrection + fc); err != nil {
                 //log.Fatal(err)  // no reason top stop program for one error
                 log.Printf("SetCenterFreq: %d error: %s", hop.ChannelFreq, err)
@@ -304,6 +315,7 @@ func main() {
                     chAlarmCnts[expectedChanPtr]++
                     chMissPerFreq[actChan[expectedChanPtr]][p.SeqToHop(nextHopChan)]++
                     log.Printf("ID:%d packet missed (%d), missed per freq: %d", actChan[expectedChanPtr], chAlarmCnts[expectedChanPtr], chMissPerFreq[actChan[expectedChanPtr]][0:maxFreq])
+                    
                     for i := 0; i < maxChan; i++ {
                         if chAlarmCnts[i] > maxmissed {
                             chAlarmCnts[i] = 0   // reset current alarm count
@@ -402,7 +414,7 @@ func main() {
                 nextHopChan = chNextHops[expectedChanPtr]
                 loopPeriod = time.Duration(chNextVisits[expectedChanPtr] - curTime + int64(62500 * time.Microsecond) + int64((ex + 10) * 1000000))
                 loopTimer = time.After(loopPeriod)
-                nextHop <- p.SetHop(nextHopChan)
+                nextHop <- p.SetHopTr(nextHopChan,actChan[expectedChanPtr])
             }
         }
     }

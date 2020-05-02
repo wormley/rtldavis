@@ -251,7 +251,7 @@ func NewDemodulator(cfg *PacketConfig) (d Demodulator) {
 	d.Raw = make([]byte, d.Cfg.BufferLength<<1)
 	d.IQ = make([]complex128, d.Cfg.BlockSize+9)
 	d.Filtered = make([]complex128, d.Cfg.BlockSize+1)
-	d.Discriminated = make([]float64, d.Cfg.BlockSize*2)
+	d.Discriminated = make([]float64, d.Cfg.BufferLength)
 	d.Quantized = make([]byte, d.Cfg.BufferLength)
 
 	d.slices = make([][]byte, d.Cfg.SymbolLength)
@@ -285,8 +285,8 @@ func (d *Demodulator) Demodulate(input []byte) []Packet {
 	d.lut.Execute(d.Raw[d.Cfg.BufferLength<<1-d.Cfg.BlockSize2:], d.IQ[9:])
 	RotateFs4(d.IQ[9:], d.IQ[9:])
 	FIR9(d.IQ, d.Filtered[1:])
-	Discriminate(d.Filtered, d.Discriminated[d.Cfg.BlockSize:])
-	Quantize(d.Discriminated[d.Cfg.BlockSize:], d.Quantized[d.Cfg.BufferLength-d.Cfg.BlockSize:])
+	Discriminate(d.Filtered, d.Discriminated[d.Cfg.BufferLength-d.Cfg.BlockSize:])
+	Quantize(d.Discriminated[d.Cfg.BufferLength-d.Cfg.BlockSize:], d.Quantized[d.Cfg.BufferLength-d.Cfg.BlockSize:])
 	d.Pack(d.Quantized)
 	return d.Slice(d.Search())
 }
