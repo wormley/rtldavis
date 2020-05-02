@@ -1,5 +1,7 @@
 # rtldavis
 
+NOTE: THIS WILL NOT WORK WITH ZERO-COPY(As of May 1, 2020). If your librtlsdr has Zero-Copy enabled then you must either replace the system version with a non Zero-Copy version per directions below or set LD_LIBRARY_PATH before starting RTLDavis to a librtlsdr with zero copy disabled.
+
 ## rtldavis
 
 ### About this Repository
