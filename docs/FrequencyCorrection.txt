@@ -1,0 +1,27 @@
+Problems with original frequency correction:
+Applied error to the following hop.
+ - Changed to apply correction based on frequency selected and expected
+   transmitter.
+
+Discriminated array does not match Quantized array so pkt.Idx can never work
+ - Extended Discriminated array handling and size to match Quantized
+   - Possibly slower due to moving slightly more data per block.
+ - Changed algorithm to use preamble bits(0-15) which are 
+   always an equal number of 0 and 1, so Discriminated output should average
+   to 0.
+ - Changed average to stride to match the same samples used in 
+   quantization as we know those bits were properly decoded.
+   - Reduces data used slightly
+ - Switched to moving average without Ring Buffer.
+   - Just because
+ - Changed Discriminated to Freq Error calculation
+   for new expected average of '0'
+ - Added verbose debug for correction enablable at build time
+   Outputs raw Discriminated values so we can make sure they match preamble
+ - Added code to not remove the expected previous correction if AFC is 
+   enabled, otherwise we'd stabilize at about 1/2 the needed correction
+
+
+
+
+ 

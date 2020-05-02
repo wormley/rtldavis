@@ -25,13 +25,16 @@ package protocol
 
 import (
 	"fmt"
-//	"log"
+	"log"
 	"math"
 	"math/rand"
 
-	"github.com/lheijst/rtldavis/crc"
-	"github.com/lheijst/rtldavis/dsp"
+	"crc"
+	"dsp"
 )
+
+var Debug bool
+var Disableafc bool
 
 func NewPacketConfig(symbolLength int) (cfg dsp.PacketConfig) {
 	return dsp.NewPacketConfig(
@@ -52,11 +55,12 @@ type Parser struct {
 	hopIdx			int
 	hopPattern		[]int
 	reverseHopPatrn []int
-	freqError		int
 	chfreq			int
-	freqerrTrChList [8][51][10]int
-	freqerrTrChPtr	[8][51]int
+// Switch To EMA
+//	freqerrTrChList [8][51][10]int
+//	freqerrTrChPtr	[8][51]int
 	freqerrTrChSum	[8][51]int
+        freqerrTrChAvg     [8][51]int
 	maxTrChList		int
 }
 
@@ -90,6 +94,7 @@ func NewParser(symbolLength int, tf string) (p Parser) {
 			920482355, 920984106, 921485856, 921987607, 922489357, 922991108, 
 			923492858, 923994609, 924496359, 924998110, 925499860, 926001611, 
 			926503361, 927005112, 927506862,  
+// 911379847
 		}
 		p.ChannelCount = len(p.channels)
 		p.hopIdx = rand.Intn(p.ChannelCount)
@@ -111,26 +116,45 @@ type Hop struct {
 	ChannelIdx  int
 	ChannelFreq int
 	FreqError   int
+        ExpectedTr  int
 }
 
 func (h Hop) String() string {
-	return fmt.Sprintf("{ChannelIdx:%d ChannelFreq:%d FreqError:%d}",
-		h.ChannelIdx, h.ChannelFreq, h.FreqError,
+	return fmt.Sprintf("{ChannelIdx:%d ChannelFreq:%d FreqError:%d ExpectedTr:%d}",
+		h.ChannelIdx, h.ChannelFreq, h.FreqError,h.ExpectedTr,
 	)
 }
 
 func (p *Parser) hop() (h Hop) {
 	h.ChannelIdx = p.hopPattern[p.hopIdx]
 	h.ChannelFreq = p.channels[h.ChannelIdx]
-	h.FreqError = p.freqError
+	h.FreqError = 0
+// p.freqError
+        h.ExpectedTr = -1
 	return h
 }
+
+func (p *Parser) hoptr(tr int) (h Hop) {
+        h.ChannelIdx = p.hopPattern[p.hopIdx]
+        h.ChannelFreq = p.channels[h.ChannelIdx]
+        h.FreqError = p.freqerrTrChAvg[tr][h.ChannelIdx]
+        h.ExpectedTr = tr
+        return h
+}
+
 
 // Set the pattern index and return the new channel's parameters.
 func (p *Parser) SetHop(n int) Hop {
 	p.hopIdx = n % p.ChannelCount
 	return p.hop()
 }
+
+func (p *Parser) SetHopTr(n int,tr int) Hop {
+        p.hopIdx = n % p.ChannelCount
+        return p.hoptr(tr)
+}
+
+
 
 // Find sequence-id with hop-id
 func (p *Parser) HopToSeq(n int) int {
@@ -163,33 +187,48 @@ func (p *Parser) Parse(pkts []dsp.Packet) (msgs []Message) {
 		if p.Checksum(pkt.Data[2:]) != 0 {
 			continue
 		}
-		// Look at the packet's tail to determine frequency error between
+		// Look at the packet's preamble to determine frequency error between
 		// transmitter and receiver.
-		lower := pkt.Idx + 8*p.Cfg.SymbolLength
-		upper := pkt.Idx + 24*p.Cfg.SymbolLength
+		// It should have equal ones and zeros so we should average out to 0
+		// Have to stride this at the same as symbol length
+		lower := pkt.Idx + 0*p.Cfg.SymbolLength
+		upper := pkt.Idx + 16*p.Cfg.SymbolLength
 		tail := p.Demodulator.Discriminated[lower:upper]
+		stride := lower % p.Cfg.SymbolLength
+                count := 0
 		var mean float64
-		for _, sample := range tail {
-			mean += sample
+                var discrim [16]float64
+		for i, sample := range tail {
+			if i % p.Cfg.SymbolLength == stride {
+			  mean += sample
+                          discrim[count]=sample
+                          count++
+			}
 		}
-		mean /= float64(len(tail))
+		mean /= float64(count)
+		if (Debug) {log.Printf("m1: %f l: %d c: %d x: %.2f",mean,len(tail),count,discrim)}
 
-		// The tail is a series of zero symbols. The driminator's output is
+
+
+		// The preamble is a set of 0 and 1 symbols, equal in number. The driminator's output is
 		// measured in radians.
-		freqerr := -int(9600 + (mean*float64(p.Cfg.SampleRate))/(2*math.Pi))
+		freqerr := -int((mean*float64(p.Cfg.SampleRate))/(2*math.Pi))
 		msg := NewMessage(pkt)
 		msgs = append(msgs, msg)
 		// Per transmitter and per channel we have a list of p.maxTrChList frequency errors
-		// The average value of the frequencu erreors in the list is used for the frequency correction.
+		// The average value of the frequency errors is used for the frequency correction.
 		tr := int(msg.ID)
 		ch := p.hopPattern[p.hopIdx]
-//		old := p.freqerrTrChList[tr][ch][p.freqerrTrChPtr[tr][ch]]
-		p.freqerrTrChSum[tr][ch] = p.freqerrTrChSum[tr][ch] - p.freqerrTrChList[tr][ch][p.freqerrTrChPtr[tr][ch]] + freqerr
-		p.freqerrTrChList[tr][ch][p.freqerrTrChPtr[tr][ch]] = freqerr
-		p.freqerrTrChPtr[tr][ch] = (p.freqerrTrChPtr[tr][ch] + 1) % p.maxTrChList
-		p.freqError = p.freqerrTrChSum[tr][ch] / 10
-//		log.Printf("tr=%d ch=%d old=%d freqerr=%d avgfreqErr=%d ptr=%d sum=%d", tr, ch, old, freqerr, p.freqError, p.freqerrTrChPtr[tr][ch], p.freqerrTrChSum[tr][ch])
-//		log.Printf("freqerrTrChList=%d", p.freqerrTrChList[tr][ch])
+                old := p.freqerrTrChAvg[tr][ch]
+		// If AFC is disabled we need to remove the error that would have been corrected away before the new error is added
+                if (Disableafc) {
+		   p.freqerrTrChSum[tr][ch] = p.freqerrTrChSum[tr][ch] + freqerr - old
+                } else {
+		// If AFC is running, then the error 'old' was removed alredy so we don't do it again
+                   p.freqerrTrChSum[tr][ch] = p.freqerrTrChSum[tr][ch] + freqerr
+                }
+		p.freqerrTrChAvg[tr][ch] = p.freqerrTrChSum[tr][ch] / 8
+		if (Debug) {log.Printf("tr=%d ch=%d old=%d freqerr=%d avgfreqErr=%d sum=%d", tr, ch, old, freqerr, p.freqerrTrChAvg[tr][ch], p.freqerrTrChSum[tr][ch])}
 	}
 	return
 }
