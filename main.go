@@ -31,6 +31,8 @@ import (
     "os"
     "os/signal"
     "time"
+    "strconv"
+    "fmt"
 
     "protocol"
     "github.com/jpoirier/gortlsdr"
@@ -45,8 +47,9 @@ var (
     maxmissed         int            // -maxmisssed = max missed-packets-in-a-row before new init
     transmitterFreq   *string        // -tf = transmitter frequencies, EU, or US
     undefined         *bool          // -un = log undefined signals
-    Debug             *bool           // -d = verbose debugging
+    Debug             *bool           // -v = verbose debugging
     Disableafc        *bool          // -noafc = disable any automatic corrections
+    deviceString      *string
 
     // general
     actChan           [8]int         // list with actual channels (0-7); 
@@ -129,8 +132,10 @@ var (
     flag.IntVar(&stepFreq, "stepfreq", 0, "test")
     transmitterFreq = flag.String("tf", "EU", "transmitter frequencies: EU or US")
     undefined = flag.Bool("u", false, "log undefined signals")
-    Debug = flag.Bool("d", false, "emit verbose debug messages")
+    Debug = flag.Bool("v", false, "emit verbose debug messages")
     Disableafc = flag.Bool("noafc", false, "disable any AFC")
+    deviceString = flag.String("d","0","device serial number or device index")
+
 
 
     flag.Parse()
@@ -167,15 +172,30 @@ var (
 }
 
 func main() {
+    var sdrIndex int = -1
     p := protocol.NewParser(14, *transmitterFreq)
     p.Cfg.Log()
 
     fs := p.Cfg.SampleRate
+    // First attempt to open the device as a Serial Number
+    sdrIndex , _ = rtlsdr.GetIndexBySerial(*deviceString)
+    if (sdrIndex <0 ) {
+	indexreturn,err := strconv.Atoi(*deviceString)
+        if (err != nil) {
+          log.Printf("Could not parse device\n")
+	  log.Fatal(err)
+        }
+        sdrIndex = indexreturn
+    }
 
-    dev, err := rtlsdr.Open(0)
+    dev, err := rtlsdr.Open(sdrIndex)
     if err != nil {
+        log.Printf("Could not open device at index: %d: ",sdrIndex)
         log.Fatal(err)
     }
+
+    log.Printf("Using Device: %d: %s",sdrIndex,rtlsdr.GetDeviceName(sdrIndex))
+
 
     hop := p.SetHop(0)    // start program with first hop frequency
     log.Printf("Hop: %s", hop)
@@ -202,9 +222,11 @@ func main() {
         if err != nil {
             log.Printf("GetTunerGains Failed - error: %s\n", err)
         } else if len(gains) > 0 {
+                gainInfo := "Supported tuner gain: "
             for i := 0; i < len(gains); i++ {
-                log.Printf("Supported tuner gain: %d Db\n", int(gains[i]))
+                gainInfo += fmt.Sprintf("%d Db ", int(gains[i]))
             }
+	    log.Printf(gainInfo)
         }
         err = dev.SetTunerGain(gain)
         if err != nil {
